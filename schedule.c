@@ -10,97 +10,39 @@
 typedef struct {
     char *name;
     int cpuBurst;
-    int startTime;
-    int endTime;
+    int remainingBurst;
+    int *startTime;
+    int *endTime;
+    int priority;
 } Task;
 
-void schedule_SJF(const char *filename) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("Failed to open file");
-        return;
-    }
+void schedule_SJF(Task *tasks, int taskCount) {
+  // Implement Shortest Job First scheduling algorithm
 
-    char taskName[100];
-    int priority, cpuBurst;
-    int taskCount = 0;
-
-    // First pass to count tasks
-    while (fscanf(file, "%s %d %d", taskName, &priority, &cpuBurst) == 3) {
-        taskCount++;
-    }
-
-    // Allocate arrays for tasks
-    Task *originalTasks = malloc(taskCount * sizeof(Task));
-    Task *sortedTasks = malloc(taskCount * sizeof(Task));
-
-    // Reset file pointer to beginning
-    fseek(file, 0, SEEK_SET);
-
-    // Second pass to read tasks into arrays
-    int index = 0;
-    while (fscanf(file, "%s %d %d", taskName, &priority, &cpuBurst) == 3) {
-        originalTasks[index].name = strdup(taskName);
-        originalTasks[index].cpuBurst = cpuBurst;
-        originalTasks[index].startTime = -1; 
-        originalTasks[index].endTime = -1;  
-
-        // Copy data to sorted array
-        sortedTasks[index] = originalTasks[index];
-        index++;
-    }
-
-    fclose(file);
-
-    // Sort the `sortedTasks` array by CPU burst time (SJF)
-    for (int i = 0; i < taskCount - 1; i++) {
-        for (int j = i + 1; j < taskCount; j++) {
-            if (sortedTasks[i].cpuBurst > sortedTasks[j].cpuBurst) {
-                Task temp = sortedTasks[i];
-                sortedTasks[i] = sortedTasks[j];
-                sortedTasks[j] = temp;
-            }
-        }
-    }
-
-    int currentTime = 0;
-    for (int i = 0; i < taskCount; i++) {
-        sortedTasks[i].startTime = currentTime;
-        currentTime += sortedTasks[i].cpuBurst;
-        sortedTasks[i].endTime = currentTime;
-    }
-
-    for (int i = 0; i < taskCount; i++) {
-        for (int j = 0; j < taskCount; j++) {
-            if (strcmp(originalTasks[i].name, sortedTasks[j].name) == 0) {
-                originalTasks[i].startTime = sortedTasks[j].startTime;
-                originalTasks[i].endTime = sortedTasks[j].endTime;
-                break;
-            }
-        }
-    }
-    // Print tasks
-    for (int i = 0; i < taskCount; i++) {
-        printf("%s -> [%d, %d]\n", originalTasks[i].name, originalTasks[i].startTime, originalTasks[i].endTime);
-    }
-
-    // Free allocated memory
-    for (int i = 0; i < taskCount; i++) {
-        free(originalTasks[i].name);
-    }
-    free(originalTasks);
-    free(sortedTasks);
 }
 
 
-void schedule_RR(const char *filename) {
+void schedule_RR(Task *tasks, int taskCount) {
     // Implement Round Robin scheduling algorithm
-    printf("Scheduling using RR from file: %s\n", filename);
 }
 
-void schedule_RRP(const char *filename) {
+void schedule_RRP(Task *tasks, int taskCount) {
     // Implement Round Robin with Priority scheduling algorithm
-    printf("Scheduling using RRP from file: %s\n", filename);
+}
+
+void printTaskIntervals(Task *tasks, int taskCount) {
+    for (int i = 0; i < taskCount; i++) {
+        printf("%s -> [", tasks[i].name);
+        if (tasks[i].startTime && tasks[i].endTime) {
+            for (int j = 0; tasks[i].startTime[j] != -1; j++) { // Assuming -1 marks the end of intervals
+                printf("%d-%d", tasks[i].startTime[j], tasks[i].endTime[j]);
+                if (tasks[i].startTime[j + 1] != -1) {
+                    printf(", ");
+                }
+            }
+        }
+        printf("]\n");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -112,17 +54,60 @@ int main(int argc, char *argv[]) {
     const char *filename = argv[1];
     const char *algorithm = argv[2];
 
-    if (strcmp(algorithm, "SJF") == 0) {
-        schedule_SJF(filename);
-    } else if (strcmp(algorithm, "RR") == 0) {
-        schedule_RR(filename);
-    } else if (strcmp(algorithm, "RRP") == 0) {
-        schedule_RRP(filename);
-    }
-     else {
-        fprintf(stderr, "Unknown scheduling algorithm: %s\n", algorithm);
+    // Open the file
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Failed to open file");
         return 1;
     }
+
+    // Count lines to determine the number of tasks
+    int taskCount = 0;
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), file)) {
+        taskCount++;
+    }
+    rewind(file); // Reset file pointer to the beginning
+
+    // Allocate memory for tasks
+    Task *tasks = malloc(taskCount * sizeof(Task));
+    if (!tasks) {
+        perror("Failed to allocate memory for tasks");
+        fclose(file);
+        return 1;
+    }
+
+    // Read tasks from file
+    int i = 0;
+    while (fgets(buffer, sizeof(buffer), file)) {
+        tasks[i].name = malloc(20 * sizeof(char)); // Assuming task names are up to 20 chars
+        sscanf(buffer, "%s %d %d", tasks[i].name, &tasks[i].priority, &tasks[i].cpuBurst);
+        tasks[i].remainingBurst = tasks[i].cpuBurst;
+        tasks[i].startTime = NULL; // Will be allocated later by scheduling algorithm
+        tasks[i].endTime = NULL;   // Will be allocated later by scheduling algorithm
+        i++;
+    }
+
+    fclose(file);
+
+    // Call the appropriate scheduling function
+    if (strcmp(algorithm, "SJF") == 0) {
+        schedule_SJF(tasks, taskCount);
+    } else if (strcmp(algorithm, "RR") == 0) {
+        schedule_RR(tasks, taskCount);
+    } else if (strcmp(algorithm, "RRP") == 0) {
+        schedule_RRP(tasks, taskCount);
+    } else {
+        fprintf(stderr, "Unknown scheduling algorithm: %s\n", algorithm);
+        free(tasks);
+        return 1;
+    }
+
+    // Free allocated memory for tasks
+    for (i = 0; i < taskCount; i++) {
+        free(tasks[i].name);
+    }
+    free(tasks);
 
     return 0;
 }
