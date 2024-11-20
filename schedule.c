@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 // Task structure
 typedef struct {
     char *name;
@@ -16,25 +12,11 @@ typedef struct {
     int priority;
 } Task;
 
-void schedule_SJF(Task *tasks, int taskCount) {
-  // Implement Shortest Job First scheduling algorithm
-
-}
-
-
-void schedule_RR(Task *tasks, int taskCount) {
-    // Implement Round Robin scheduling algorithm
-}
-
-void schedule_RRP(Task *tasks, int taskCount) {
-    // Implement Round Robin with Priority scheduling algorithm
-}
-
 void printTaskIntervals(Task *tasks, int taskCount) {
     for (int i = 0; i < taskCount; i++) {
         printf("%s -> [", tasks[i].name);
         if (tasks[i].startTime && tasks[i].endTime) {
-            for (int j = 0; tasks[i].startTime[j] != -1; j++) { // Assuming -1 marks the end of intervals
+            for (int j = 0; tasks[i].startTime[j] != -1; j++) { //-1 marks the end of intervals
                 printf("%d-%d", tasks[i].startTime[j], tasks[i].endTime[j]);
                 if (tasks[i].startTime[j + 1] != -1) {
                     printf(", ");
@@ -43,6 +25,51 @@ void printTaskIntervals(Task *tasks, int taskCount) {
         }
         printf("]\n");
     }
+}
+
+int compareTasks(const void *a, const void *b) {
+    Task *taskA = (Task *)a;
+    Task *taskB = (Task *)b;
+    return taskA->cpuBurst - taskB->cpuBurst;
+}
+
+void schedule_SJF(Task *tasks, int taskCount) {
+    // Step 1: Sort tasks by cpuBurst
+    qsort(tasks, taskCount, sizeof(Task), compareTasks);
+
+    // Step 2: Simulate task execution
+    int currentTime = 0;
+    for (int i = 0; i < taskCount; i++) {
+        // Allocate startTime and endTime arrays
+        tasks[i].startTime = malloc(sizeof(int));
+        tasks[i].endTime = malloc(sizeof(int));
+
+        // Assign start and end times
+        tasks[i].startTime[0] = currentTime;
+        currentTime += tasks[i].cpuBurst;
+        tasks[i].endTime[0] = currentTime;
+
+        // Mark end of intervals
+        tasks[i].startTime[1] = -1; // Sentinel value
+        tasks[i].endTime[1] = -1;  // Sentinel value
+    }
+
+    // Step 3: Print task intervals
+    printTaskIntervals(tasks, taskCount);
+
+    // Step 4: Free allocated memory for intervals
+    for (int i = 0; i < taskCount; i++) {
+        free(tasks[i].startTime);
+        free(tasks[i].endTime);
+    }
+}
+
+void schedule_RR(Task *tasks, int taskCount) {
+    // Implement Round Robin scheduling algorithm
+}
+
+void schedule_RRP(Task *tasks, int taskCount) {
+    // Implement Round Robin with Priority scheduling algorithm
 }
 
 int main(int argc, char *argv[]) {
