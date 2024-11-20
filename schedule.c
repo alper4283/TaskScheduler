@@ -14,7 +14,6 @@ typedef struct {
 } Task;
 
 void printTaskIntervals(Task *tasks, int taskCount) {
-    // Create an array of pointers to tasks for sorting
     Task *sortedTasks[taskCount];
     for (int i = 0; i < taskCount; i++) {
         sortedTasks[i] = &tasks[i];
@@ -43,9 +42,7 @@ void printTaskIntervals(Task *tasks, int taskCount) {
                     // Extend the current interval
                     end = task->endTime[j];
                 } else {
-                    // Print the current interval
                     printf("%d-%d, ", start, end);
-                    // Start a new interval
                     start = task->startTime[j];
                     end = task->endTime[j];
                 }
@@ -72,46 +69,34 @@ int compareByPriority(const void *a, const void *b) {
 
 
 void schedule_SJF(Task *tasks, int taskCount) {
-    // Step 1: Sort tasks by cpuBurst
+    //Sort tasks by cpuBurst
     qsort(tasks, taskCount, sizeof(Task), compareTasks);
 
-    // Step 2: Simulate task execution
     int currentTime = 0;
     for (int i = 0; i < taskCount; i++) {
-        // Allocate startTime and endTime arrays
         tasks[i].startTime = malloc(sizeof(int));
         tasks[i].endTime = malloc(sizeof(int));
 
-        // Assign start and end times
         tasks[i].startTime[0] = currentTime;
         currentTime += tasks[i].cpuBurst;
         tasks[i].endTime[0] = currentTime;
 
-        // Mark end of intervals
-        tasks[i].startTime[1] = -1; // Sentinel value
-        tasks[i].endTime[1] = -1;  // Sentinel value
+        tasks[i].startTime[1] = -1; 
+        tasks[i].endTime[1] = -1; 
     }
 
-    // Step 3: Print task intervals
     printTaskIntervals(tasks, taskCount);
-
-    // Step 4: Free allocated memory for intervals
-    for (int i = 0; i < taskCount; i++) {
-        free(tasks[i].startTime);
-        free(tasks[i].endTime);
-    }
 }
 
 void schedule_RR(Task *tasks, int taskCount) {
-    const int quantum = 5; // Fixed quantum time
-    int currentTime = 0;   // Tracks the current time in the simulation
+    const int quantum = 5; 
+    int currentTime = 0;   
 
-    // Allocate memory for start and end times for each task
     for (int i = 0; i < taskCount; i++) {
-        tasks[i].startTime = malloc(taskCount * sizeof(int)); // Maximum intervals = taskCount
+        tasks[i].startTime = malloc(taskCount * sizeof(int)); 
         tasks[i].endTime = malloc(taskCount * sizeof(int));
-        tasks[i].startTime[0] = -1; // Sentinel value for end of intervals
-        tasks[i].endTime[0] = -1;   // Sentinel value for end of intervals
+        tasks[i].startTime[0] = -1; 
+        tasks[i].endTime[0] = -1;   
     }
 
     // Initialize a queue for Round Robin scheduling
@@ -120,15 +105,14 @@ void schedule_RR(Task *tasks, int taskCount) {
 
     // Enqueue all tasks initially
     for (int i = 0; i < taskCount; i++) {
-        queue[rear++] = i; // Add task index to the queue
+        queue[rear++] = i; 
     }
 
     // Process tasks in the queue
     while (front < rear) {
-        int taskIndex = queue[front++]; // Dequeue the first task
+        int taskIndex = queue[front++]; 
         int remainingTime = tasks[taskIndex].remainingBurst;
 
-        // Update start time for the interval
         int intervalIndex = 0;
         while (tasks[taskIndex].startTime[intervalIndex] != -1) {
             intervalIndex++;
@@ -150,39 +134,29 @@ void schedule_RR(Task *tasks, int taskCount) {
             currentTime += remainingTime;
             tasks[taskIndex].remainingBurst = 0;
 
-            // Update end time for the interval
             tasks[taskIndex].endTime[intervalIndex] = currentTime;
         }
 
-        // Mark the end of intervals
         tasks[taskIndex].startTime[intervalIndex + 1] = -1;
         tasks[taskIndex].endTime[intervalIndex + 1] = -1;
     }
 
-    // Print task intervals
     printTaskIntervals(tasks, taskCount);
-
-    // Free allocated memory
-    for (int i = 0; i < taskCount; i++) {
-        free(tasks[i].startTime);
-        free(tasks[i].endTime);
-    }
     free(queue);
 }
 
 void schedule_RRP(Task *tasks, int taskCount) {
     for (int i = 0; i < taskCount; i++) {
-    tasks[i].startTime = malloc(taskCount * sizeof(int)); // Max intervals = taskCount
+    tasks[i].startTime = malloc(taskCount * sizeof(int)); 
     tasks[i].endTime = malloc(taskCount * sizeof(int));
 
-    // Initialize all elements to -1
     for (int j = 0; j < taskCount; j++) {
         tasks[i].startTime[j] = -1;
         tasks[i].endTime[j] = -1;
     }
 }
-    const int quantum = 5; // Fixed quantum time
-    int currentTime = 0;   // Tracks the current time in the simulation
+    const int quantum = 5; 
+    int currentTime = 0;   
 
     // Step 1: Sort tasks by priority
     qsort(tasks, taskCount, sizeof(Task), compareByPriority);
@@ -204,11 +178,11 @@ void schedule_RRP(Task *tasks, int taskCount) {
 
         // Enqueue all tasks in this priority group
         for (int j = i; j < groupEnd; j++) {
-            queue[rear++] = j; // Add task index to the queue
+            queue[rear++] = j; 
         }
 
         while (front < rear) {
-            int taskIndex = queue[front++]; // Dequeue the first task
+            int taskIndex = queue[front++]; 
             int remainingTime = tasks[taskIndex].remainingBurst;
 
             // Find the next available interval index
@@ -233,29 +207,19 @@ void schedule_RRP(Task *tasks, int taskCount) {
                 currentTime += remainingTime;
                 tasks[taskIndex].remainingBurst = 0;
 
-                // Update end time for the interval
                 tasks[taskIndex].endTime[intervalIndex] = currentTime;
             }
 
-            // Mark the end of intervals
             tasks[taskIndex].startTime[intervalIndex + 1] = -1;
             tasks[taskIndex].endTime[intervalIndex + 1] = -1;
         }
 
-        free(queue); // Free memory for the queue
+        free(queue); 
 
-        // Move to the next priority group
         i = groupEnd;
     }
 
-    // Step 3: Print task intervals
     printTaskIntervals(tasks, taskCount);
-
-    // Free memory for start and end times
-    for (int i = 0; i < taskCount; i++) {
-        free(tasks[i].startTime);
-        free(tasks[i].endTime);
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -280,7 +244,7 @@ int main(int argc, char *argv[]) {
     while (fgets(buffer, sizeof(buffer), file)) {
         taskCount++;
     }
-    rewind(file); // Reset file pointer to the beginning
+    rewind(file); 
 
     // Allocate memory for tasks
     Task *tasks = malloc(taskCount * sizeof(Task));
@@ -296,8 +260,8 @@ int main(int argc, char *argv[]) {
         tasks[i].name = malloc(20 * sizeof(char)); // Assuming task names are up to 20 chars
         sscanf(buffer, "%s %d %d", tasks[i].name, &tasks[i].priority, &tasks[i].cpuBurst);
         tasks[i].remainingBurst = tasks[i].cpuBurst;
-        tasks[i].startTime = NULL; // Will be allocated later by scheduling algorithm
-        tasks[i].endTime = NULL;   // Will be allocated later by scheduling algorithm
+        tasks[i].startTime = NULL; 
+        tasks[i].endTime = NULL;   
         tasks[i].originalIndex = i;
         i++;
     }
@@ -317,9 +281,30 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Calculate WT and RT
+    double totalWT = 0, totalRT = 0;
+    for (i = 0; i < taskCount; i++) {
+        totalRT += tasks[i].startTime[0];
+
+        int lastEndTime = tasks[i].endTime[0];
+        int j = 1;
+        while (tasks[i].endTime[j] != -1) {
+            lastEndTime = tasks[i].endTime[j];
+            j++;
+        }
+        totalWT += (lastEndTime - tasks[i].cpuBurst);
+    }
+
+    // Print WT and RT averages
+    printf("--- Stats ---\n");
+    printf("WT : %.2f\n", totalWT / taskCount);
+    printf("RT : %.2f\n", totalRT / taskCount);
+
     // Free allocated memory for tasks
     for (i = 0; i < taskCount; i++) {
         free(tasks[i].name);
+        free(tasks[i].startTime);
+        free(tasks[i].endTime);
     }
     free(tasks);
 
