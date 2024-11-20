@@ -16,12 +16,22 @@ void printTaskIntervals(Task *tasks, int taskCount) {
     for (int i = 0; i < taskCount; i++) {
         printf("%s -> [", tasks[i].name);
         if (tasks[i].startTime && tasks[i].endTime) {
-            for (int j = 0; tasks[i].startTime[j] != -1; j++) { //-1 marks the end of intervals
-                printf("%d-%d", tasks[i].startTime[j], tasks[i].endTime[j]);
-                if (tasks[i].startTime[j + 1] != -1) {
-                    printf(", ");
+            int start = tasks[i].startTime[0];
+            int end = tasks[i].endTime[0];
+            for (int j = 1; tasks[i].startTime[j] != -1; j++) {
+                if (tasks[i].startTime[j] == end) {
+                    // Extend the current interval
+                    end = tasks[i].endTime[j];
+                } else {
+                    // Print the current interval
+                    printf("%d-%d, ", start, end);
+                    // Start a new interval
+                    start = tasks[i].startTime[j];
+                    end = tasks[i].endTime[j];
                 }
             }
+            // Print the last interval
+            printf("%d-%d", start, end);
         }
         printf("]\n");
     }
@@ -65,7 +75,71 @@ void schedule_SJF(Task *tasks, int taskCount) {
 }
 
 void schedule_RR(Task *tasks, int taskCount) {
-    // Implement Round Robin scheduling algorithm
+    const int quantum = 5; // Fixed quantum time
+    int currentTime = 0;   // Tracks the current time in the simulation
+
+    // Allocate memory for start and end times for each task
+    for (int i = 0; i < taskCount; i++) {
+        tasks[i].startTime = malloc(taskCount * sizeof(int)); // Maximum intervals = taskCount
+        tasks[i].endTime = malloc(taskCount * sizeof(int));
+        tasks[i].startTime[0] = -1; // Sentinel value for end of intervals
+        tasks[i].endTime[0] = -1;   // Sentinel value for end of intervals
+    }
+
+    // Initialize a queue for Round Robin scheduling
+    int *queue = malloc(taskCount * sizeof(int));
+    int front = 0, rear = 0;
+
+    // Enqueue all tasks initially
+    for (int i = 0; i < taskCount; i++) {
+        queue[rear++] = i; // Add task index to the queue
+    }
+
+    // Process tasks in the queue
+    while (front < rear) {
+        int taskIndex = queue[front++]; // Dequeue the first task
+        int remainingTime = tasks[taskIndex].remainingBurst;
+
+        // Update start time for the interval
+        int intervalIndex = 0;
+        while (tasks[taskIndex].startTime[intervalIndex] != -1) {
+            intervalIndex++;
+        }
+        tasks[taskIndex].startTime[intervalIndex] = currentTime;
+
+        if (remainingTime > quantum) {
+            // Task gets a quantum slice
+            currentTime += quantum;
+            tasks[taskIndex].remainingBurst -= quantum;
+
+            // Update end time for the interval
+            tasks[taskIndex].endTime[intervalIndex] = currentTime;
+
+            // Re-enqueue the task
+            queue[rear++] = taskIndex;
+        } else {
+            // Task finishes within this quantum
+            currentTime += remainingTime;
+            tasks[taskIndex].remainingBurst = 0;
+
+            // Update end time for the interval
+            tasks[taskIndex].endTime[intervalIndex] = currentTime;
+        }
+
+        // Mark the end of intervals
+        tasks[taskIndex].startTime[intervalIndex + 1] = -1;
+        tasks[taskIndex].endTime[intervalIndex + 1] = -1;
+    }
+
+    // Print task intervals
+    printTaskIntervals(tasks, taskCount);
+
+    // Free allocated memory
+    for (int i = 0; i < taskCount; i++) {
+        free(tasks[i].startTime);
+        free(tasks[i].endTime);
+    }
+    free(queue);
 }
 
 void schedule_RRP(Task *tasks, int taskCount) {
