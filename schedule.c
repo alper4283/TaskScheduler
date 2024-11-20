@@ -10,24 +10,44 @@ typedef struct {
     int *startTime;
     int *endTime;
     int priority;
+    int originalIndex;
 } Task;
 
 void printTaskIntervals(Task *tasks, int taskCount) {
+    // Create an array of pointers to tasks for sorting
+    Task *sortedTasks[taskCount];
     for (int i = 0; i < taskCount; i++) {
-        printf("%s -> [", tasks[i].name);
-        if (tasks[i].startTime && tasks[i].endTime) {
-            int start = tasks[i].startTime[0];
-            int end = tasks[i].endTime[0];
-            for (int j = 1; tasks[i].startTime[j] != -1; j++) {
-                if (tasks[i].startTime[j] == end) {
+        sortedTasks[i] = &tasks[i];
+    }
+
+    // Sort tasks by their original index
+    for (int i = 0; i < taskCount - 1; i++) {
+        for (int j = i + 1; j < taskCount; j++) {
+            if (sortedTasks[i]->originalIndex > sortedTasks[j]->originalIndex) {
+                Task *temp = sortedTasks[i];
+                sortedTasks[i] = sortedTasks[j];
+                sortedTasks[j] = temp;
+            }
+        }
+    }
+
+    // Print intervals for tasks in original order
+    for (int i = 0; i < taskCount; i++) {
+        Task *task = sortedTasks[i];
+        printf("%s -> [", task->name);
+        if (task->startTime && task->endTime) {
+            int start = task->startTime[0];
+            int end = task->endTime[0];
+            for (int j = 1; task->startTime[j] != -1; j++) {
+                if (task->startTime[j] == end) {
                     // Extend the current interval
-                    end = tasks[i].endTime[j];
+                    end = task->endTime[j];
                 } else {
                     // Print the current interval
                     printf("%d-%d, ", start, end);
                     // Start a new interval
-                    start = tasks[i].startTime[j];
-                    end = tasks[i].endTime[j];
+                    start = task->startTime[j];
+                    end = task->endTime[j];
                 }
             }
             // Print the last interval
@@ -37,11 +57,19 @@ void printTaskIntervals(Task *tasks, int taskCount) {
     }
 }
 
+
 int compareTasks(const void *a, const void *b) {
     Task *taskA = (Task *)a;
     Task *taskB = (Task *)b;
     return taskA->cpuBurst - taskB->cpuBurst;
 }
+
+int compareByPriority(const void *a, const void *b) {
+    Task *taskA = (Task *)a;
+    Task *taskB = (Task *)b;
+    return taskA->priority - taskB->priority; // Ascending order of priority
+}
+
 
 void schedule_SJF(Task *tasks, int taskCount) {
     // Step 1: Sort tasks by cpuBurst
@@ -143,7 +171,91 @@ void schedule_RR(Task *tasks, int taskCount) {
 }
 
 void schedule_RRP(Task *tasks, int taskCount) {
-    // Implement Round Robin with Priority scheduling algorithm
+    for (int i = 0; i < taskCount; i++) {
+    tasks[i].startTime = malloc(taskCount * sizeof(int)); // Max intervals = taskCount
+    tasks[i].endTime = malloc(taskCount * sizeof(int));
+
+    // Initialize all elements to -1
+    for (int j = 0; j < taskCount; j++) {
+        tasks[i].startTime[j] = -1;
+        tasks[i].endTime[j] = -1;
+    }
+}
+    const int quantum = 5; // Fixed quantum time
+    int currentTime = 0;   // Tracks the current time in the simulation
+
+    // Step 1: Sort tasks by priority
+    qsort(tasks, taskCount, sizeof(Task), compareByPriority);
+
+
+    // Step 2: Execute Round Robin within each priority group
+    for (int i = 0; i < taskCount; ) {
+        int priority = tasks[i].priority;
+        int groupEnd = i;
+
+        // Find the end of the current priority group
+        while (groupEnd < taskCount && tasks[groupEnd].priority == priority) {
+            groupEnd++;
+        }
+
+        // Perform Round Robin on this priority group
+        int *queue = malloc((groupEnd - i) * sizeof(int));
+        int front = 0, rear = 0;
+
+        // Enqueue all tasks in this priority group
+        for (int j = i; j < groupEnd; j++) {
+            queue[rear++] = j; // Add task index to the queue
+        }
+
+        while (front < rear) {
+            int taskIndex = queue[front++]; // Dequeue the first task
+            int remainingTime = tasks[taskIndex].remainingBurst;
+
+            // Find the next available interval index
+            int intervalIndex = 0;
+            while (tasks[taskIndex].startTime[intervalIndex] != -1) {
+                intervalIndex++;
+            }
+            tasks[taskIndex].startTime[intervalIndex] = currentTime;
+
+            if (remainingTime > quantum) {
+                // Task gets a quantum slice
+                currentTime += quantum;
+                tasks[taskIndex].remainingBurst -= quantum;
+
+                // Update end time for the interval
+                tasks[taskIndex].endTime[intervalIndex] = currentTime;
+
+                // Re-enqueue the task
+                queue[rear++] = taskIndex;
+            } else {
+                // Task finishes within this quantum
+                currentTime += remainingTime;
+                tasks[taskIndex].remainingBurst = 0;
+
+                // Update end time for the interval
+                tasks[taskIndex].endTime[intervalIndex] = currentTime;
+            }
+
+            // Mark the end of intervals
+            tasks[taskIndex].startTime[intervalIndex + 1] = -1;
+            tasks[taskIndex].endTime[intervalIndex + 1] = -1;
+        }
+
+        free(queue); // Free memory for the queue
+
+        // Move to the next priority group
+        i = groupEnd;
+    }
+
+    // Step 3: Print task intervals
+    printTaskIntervals(tasks, taskCount);
+
+    // Free memory for start and end times
+    for (int i = 0; i < taskCount; i++) {
+        free(tasks[i].startTime);
+        free(tasks[i].endTime);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -186,6 +298,7 @@ int main(int argc, char *argv[]) {
         tasks[i].remainingBurst = tasks[i].cpuBurst;
         tasks[i].startTime = NULL; // Will be allocated later by scheduling algorithm
         tasks[i].endTime = NULL;   // Will be allocated later by scheduling algorithm
+        tasks[i].originalIndex = i;
         i++;
     }
 
